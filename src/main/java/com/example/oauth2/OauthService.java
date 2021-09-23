@@ -15,9 +15,14 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class OauthService {
 
     private final InMemoryProviderRepository inMemoryProviderRepository;
+    private final MemberRepository memberRepository;
+    private final JwtTokenProvider jwtTokenProvider;
 
-    public OauthService(InMemoryProviderRepository inMemoryProviderRepository) {
+    public OauthService(InMemoryProviderRepository inMemoryProviderRepository, MemberRepository memberRepository,
+                        JwtTokenProvider jwtTokenProvider) {
         this.inMemoryProviderRepository = inMemoryProviderRepository;
+        this.memberRepository = memberRepository;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     public LoginResponse login(String providerName, String code) {
@@ -30,9 +35,33 @@ public class OauthService {
         // 유저 정보 가져오기
         UserProfile userProfile = getUserProfile(providerName, tokenResponse, provider);
 
+        // 유저 DB에 저장
+        Member member = saveOrUpdate(userProfile);
 
-        // TODO 유저 DB에 저장
-        return null;
+        String accessToken = jwtTokenProvider.createAccessToken(String.valueOf(member.getId()));
+        String refreshToken = jwtTokenProvider.createRefreshToken();
+
+        // TODO 레디스에 refresh token 추가
+        // redisUtil.setData(String.valueOf(member.getId()), refreshToken);
+
+        return LoginResponse.builder()
+                            .id(member.getId())
+                            .name(member.getName())
+                            .email(member.getEmail())
+                            .imageUrl(member.getImageUrl())
+                            .role(member.getRole())
+                            .tokenType("Bearer")
+                            .accessToken(accessToken)
+                            .refreshToken(refreshToken)
+                            .build();
+    }
+
+    private Member saveOrUpdate(UserProfile userProfile) {
+        Member member = memberRepository.findByOauthId(userProfile.getOauthId())
+                                        .map(entity -> entity.update(
+                                                userProfile.getEmail(), userProfile.getName(), userProfile.getImageUrl()))
+                                        .orElseGet(userProfile::toMember);
+        return memberRepository.save(member);
     }
 
     private OauthTokenResponse getToken(String code, OauthProvider provider) {

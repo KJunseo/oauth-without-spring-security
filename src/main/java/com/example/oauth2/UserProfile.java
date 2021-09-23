@@ -17,4 +17,14 @@ public class UserProfile {
         this.name = name;
         this.imageUrl = imageUrl;
     }
+
+    public Member toMember() {
+        return Member.builder()
+                     .oauthId(oauthId)
+                     .email(email)
+                     .name(name)
+                     .imageUrl(imageUrl)
+                     .role(Role.GUEST)
+                     .build();
+    }
 }
