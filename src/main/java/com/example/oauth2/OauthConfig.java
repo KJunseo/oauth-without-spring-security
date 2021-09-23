@@ -1,6 +1,9 @@
 package com.example.oauth2;
 
+import java.util.Map;
+
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
@@ -13,4 +16,9 @@ public class OauthConfig {
         this.properties = properties;
     }
 
+    @Bean
+    public InMemoryProviderRepository inMemoryProviderRepository() {
+        Map<String, OauthProvider> providers = OauthAdapter.getOauthProviders(properties);
+        return new InMemoryProviderRepository(providers);
+    }
 }
